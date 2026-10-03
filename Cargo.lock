@@ -1009,6 +1009,7 @@ dependencies = [
  "cc",
  "cmake",
  "corosensei",
+ "crc32fast",
  "digest",
  "encoding_rs",
  "gl_generator",
