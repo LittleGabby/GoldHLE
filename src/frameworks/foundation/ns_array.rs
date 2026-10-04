@@ -478,6 +478,15 @@ pub const CLASSES: ClassExports = objc_classes! {
     autorelease(env, new)
 }
 
+
+- (id)arrayByAddingObject:(id)anObject {
+    let mut objects = env.objc.borrow::<ArrayHostObject>(this).array.clone();
+    retain(env, anObject);
+    objects.push(anObject);
+    let res = from_vec(env, objects);
+    autorelease(env, res)
+}
+
 @end
 
 // Special variant for use by CFArray with NULL callbacks: objects aren't
