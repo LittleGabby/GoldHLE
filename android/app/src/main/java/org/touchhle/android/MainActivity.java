@@ -128,7 +128,8 @@ public class MainActivity extends SDLActivity {
 
     /**
      * Copy the file picked via the "Add game" file picker into the apps
-     * directory, then exit, so that the app list is rescanned on next launch.
+     * directory, then leave a marker file so that the running app picker
+     * notices it and adds it to the app list without a restart.
      */
     private void addGameCopy(Uri uri) {
         try {
@@ -162,9 +163,14 @@ public class MainActivity extends SDLActivity {
             inputStream.close();
 
             Log.i("touchHLE", "Added game: " + outFile.getPath());
-            // Exit so that the app picker rescans the apps directory on the
-            // next launch.
-            System.exit(0);
+            // Leave a marker file so that the running app picker notices the
+            // new game and shows it without needing a restart.
+            try {
+                new File(getExternalFilesDir(null), ".touchHLE_import_done")
+                        .createNewFile();
+            } catch (Exception e) {
+                Log.e("touchHLE", "Couldn't write the import marker", e);
+            }
         } catch (Exception e) {
             Log.e("touchHLE", "Couldn't add the picked game", e);
         }

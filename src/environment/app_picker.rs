@@ -16,6 +16,7 @@ use crate::frameworks::core_graphics::cg_image::{self, kCGImageAlphaPremultiplie
 use crate::frameworks::core_graphics::{CGFloat, CGPoint, CGRect, CGSize};
 use crate::frameworks::foundation::ns_run_loop::run_run_loop_single_iteration;
 use crate::frameworks::foundation::ns_string;
+use crate::frameworks::foundation::NSTimeInterval;
 use crate::frameworks::uikit::ui_font::{
     UITextAlignmentCenter, UITextAlignmentLeft, UITextAlignmentRight,
 };
@@ -236,6 +237,12 @@ const CLASSES: ClassExports = objc_classes! {
 - (())fullscreen:(id)switch { // UISwitch*
     let switch_state: bool = msg![env; switch isOn];
     env.objc.borrow_mut::<AppPickerDelegateHostObject>(this).fullscreen = Some(switch_state);
+}
+
+- (())addGameImportPoll {
+    // Does nothing. This exists just so that the poll timer below can wake
+    // up the app picker's loop while it's idle, so it can check for games
+    // imported via the "Add game" button.
 }
 
 - (())addGame {
@@ -653,8 +660,58 @@ fn app_picker_inner(
     let main_run_loop: id = msg_class![env; NSRunLoop mainRunLoop];
     // If an app is picked, this loop returns. If the user quits touchHLE, the
     // process exits.
+
+    // The "Add game" file picker (Android) copies the picked .ipa in the
+    // background and then leaves a marker file behind. While the picker is
+    // idle, a repeating timer makes sure the loop below still runs often
+    // enough to notice the marker quickly.
+    let import_poll_timer: id = msg_class![env; NSTimer
+        scheduledTimerWithTimeInterval:(0.5 as NSTimeInterval)
+                              target:delegate
+                            selector:(env.objc.lookup_selector("addGameImportPoll").unwrap())
+                            userInfo:/* user_info: */ nil
+                             repeats:true
+    ];
+    let () = msg![env; main_run_loop addTimer:import_poll_timer];
+
+    let import_marker = paths::user_data_base_path().join(".touchHLE_import_done");
+    // A leftover marker can only be stale: any app it referred to is already
+    // part of the scan done at startup.
+    let _ = std::fs::remove_file(&import_marker);
+    let old_app_paths: Vec<std::path::PathBuf> = apps
+        .as_ref()
+        .map(|apps| apps.iter().map(|app| app.path.clone()).collect())
+        .unwrap_or_default();
     let app_path = loop {
         run_run_loop_single_iteration(env, main_run_loop);
+        if import_marker.is_file() {
+            let _ = std::fs::remove_file(&import_marker);
+            let apps_dir = paths::user_data_base_path().join(paths::APPS_DIR);
+            match enumerate_apps(&apps_dir) {
+                Ok(new_apps) if !new_apps.is_empty() => {
+                    let new_idx = new_apps
+                        .iter()
+                        .position(|app| !old_app_paths.contains(&app.path));
+                    apps = Ok(new_apps);
+                    let page_idx = new_idx.and_then(|idx| {
+                        icon_grid_stuff
+                            .as_ref()
+                            .unwrap()
+                            .pages
+                            .iter()
+                            .position(|range| range.contains(&idx))
+                    });
+                    update_icon_grid(
+                        env,
+                        icon_grid_stuff.as_mut().unwrap(),
+                        apps.as_mut().unwrap(),
+                        page_idx.unwrap_or(0),
+                    );
+                }
+                // Keep the current list if the rescan failed or came up empty.
+                _ => (),
+            }
+        }
         let host_obj = env.objc.borrow_mut::<AppPickerDelegateHostObject>(delegate);
         let icon_tapped = std::mem::take(&mut host_obj.icon_tapped);
         if icon_tapped != nil {
