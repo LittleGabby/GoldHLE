@@ -238,10 +238,24 @@ const CLASSES: ClassExports = objc_classes! {
     env.objc.borrow_mut::<AppPickerDelegateHostObject>(this).fullscreen = Some(switch_state);
 }
 
-- (())openFileManager {
+- (())addGame {
     // Assert (see above).
     let _ = env.objc.borrow_mut::<AppPickerDelegateHostObject>(this);
 
+    // On Android, launch the system file picker and let the app copy the
+    // selected file into touchHLE_apps itself (see MainActivity.java). The
+    // app restarts afterwards so that the app list can be rescanned.
+    #[cfg(target_os = "android")]
+    {
+        if let Err(e) = android_start_add_game_picker() {
+            echo!("Couldn't start the add-game file picker: {}", e);
+        }
+    }
+
+    // On other platforms, there is no system file picker to hand the file
+    // over to, so open the user data directory in the platform's file
+    // manager, like this button used to do.
+    #[cfg(not(target_os = "android"))]
     match paths::url_for_opening_user_data_dir() {
         Ok(url) => {
             // Our `openURL:` implementation is bypassed because it doesn't
@@ -271,6 +285,30 @@ const CLASSES: ClassExports = objc_classes! {
 @end
 
 };
+
+/// Launch Android's system file picker (via MainActivity.java) so the user
+/// can pick an app bundle (e.g. a `.ipa` file) to add.
+#[cfg(target_os = "android")]
+fn android_start_add_game_picker() -> Result<(), String> {
+    extern "C" {
+        fn SDL_AndroidGetJNIEnv() -> *mut std::ffi::c_void;
+    }
+
+    let jni_env_ptr = unsafe { SDL_AndroidGetJNIEnv() };
+    if jni_env_ptr.is_null() {
+        return Err("Couldn't get the JNI environment".to_string());
+    }
+    let mut jni_env = unsafe { jni::JNIEnv::from_raw(jni_env_ptr as *mut _) }
+        .map_err(|e| format!("Couldn't wrap the JNI environment: {}", e))?;
+
+    let activity_class = jni_env
+        .find_class("org/touchhle/android/MainActivity")
+        .map_err(|e| format!("Couldn't find the MainActivity class: {}", e))?;
+    jni_env
+        .call_static_method(activity_class, "addGamePicker", "()V", &[])
+        .map_err(|e| format!("Couldn't launch the add-game file picker: {}", e))?;
+    Ok(())
+}
 
 fn show_app_picker_gui(
     options: Options,
@@ -504,7 +542,7 @@ fn app_picker_inner(
         app_frame.size,
         buttons_row_center,
         &[
-            ("File manager", "openFileManager"),
+            ("Add game", "addGame"),
             ("Quick options", "quickOptionsShow"),
         ],
         None,
