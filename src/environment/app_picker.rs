@@ -290,24 +290,50 @@ const CLASSES: ClassExports = objc_classes! {
 /// can pick an app bundle (e.g. a `.ipa` file) to add.
 #[cfg(target_os = "android")]
 fn android_start_add_game_picker() -> Result<(), String> {
+    use jni::objects::JObject;
+
     extern "C" {
         fn SDL_AndroidGetJNIEnv() -> *mut std::ffi::c_void;
+        fn SDL_AndroidGetActivity() -> *mut std::ffi::c_void;
     }
 
     let jni_env_ptr = unsafe { SDL_AndroidGetJNIEnv() };
     if jni_env_ptr.is_null() {
         return Err("Couldn't get the JNI environment".to_string());
     }
+    // SAFETY: SDL gives us a valid JNIEnv pointer for the current thread.
     let mut jni_env = unsafe { jni::JNIEnv::from_raw(jni_env_ptr as *mut _) }
         .map_err(|e| format!("Couldn't wrap the JNI environment: {}", e))?;
 
-    let activity_class = jni_env
-        .find_class("org/touchhle/android/MainActivity")
-        .map_err(|e| format!("Couldn't find the MainActivity class: {}", e))?;
-    jni_env
-        .call_static_method(activity_class, "addGamePicker", "()V", &[])
-        .map_err(|e| format!("Couldn't launch the add-game file picker: {}", e))?;
-    Ok(())
+    let mut result = Ok(());
+
+    // Don't use `find_class` here: threads created by native code (like
+    // SDL's) can't see app classes through the system class loader, so the
+    // lookup fails. Instead, get the activity object from SDL and derive the
+    // MainActivity class from it with GetObjectClass.
+    let activity_ptr = unsafe { SDL_AndroidGetActivity() };
+    if activity_ptr.is_null() {
+        result = Err("Couldn't get the activity object".to_string());
+    } else {
+        // SAFETY: the pointer is a valid local reference to the activity.
+        let activity = unsafe { JObject::from_raw(activity_ptr as *mut _) };
+        match jni_env.get_object_class(&activity) {
+            Ok(class) => {
+                if let Err(e) = jni_env.call_static_method(class, "addGamePicker", "()V", &[]) {
+                    result = Err(format!("Couldn't launch the add-game file picker: {}", e));
+                }
+            }
+            Err(e) => result = Err(format!("Couldn't get the MainActivity class: {}", e)),
+        }
+    }
+
+    // If a JNI call failed, the Java exception it threw is still "pending".
+    // The JNI bindings don't clear it automatically, and the next JNI call
+    // (which may be made by SDL itself) would then abort the VM. Clear it so
+    // a failure here is merely a failure.
+    let _ = jni_env.exception_clear();
+
+    result
 }
 
 fn show_app_picker_gui(
