@@ -3,6 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
+#![allow(non_upper_case_globals)]
 //! CommonCrypto and friends
 
 use crate::cpu::Cpu;
@@ -91,7 +93,7 @@ fn aes_block_crypt(key: &[u8], op: u32, block: &mut [u8; AES_BLOCK_SIZE]) {
     }
 }
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, clippy::too_many_arguments)]
 fn CCCrypt(
     env: &mut Environment,
     op: u32,
@@ -142,10 +144,11 @@ fn CCCrypt(
 
         // Block ciphers require input aligned to the block size, unless
         // padding is requested on the encrypt path.
-        if in_bytes.len() % AES_BLOCK_SIZE != 0 {
-            if op == kCCDecrypt || (options & kCCOptionPKCS7Padding) == 0 {
-                return kCCAlignmentError;
-            }
+        let padding_requested = (options & kCCOptionPKCS7Padding) != 0;
+        if !in_bytes.len().is_multiple_of(AES_BLOCK_SIZE)
+            && (op == kCCDecrypt || !padding_requested)
+        {
+            return kCCAlignmentError;
         }
         // PKCS7 always adds at least one byte; when the input length is an
         // exact multiple of the block size, a whole block of padding is added.
@@ -168,7 +171,8 @@ fn CCCrypt(
             block[..chunk.len()].copy_from_slice(chunk);
             let orig = block;
             // CBC: on encrypt the chaining happens before the cipher
-            // (c = E(p ^ chain)), on decrypt it happens after (p = D(c) ^ chain).
+            // (c = E(p ^ chain)); on decrypt it happens after
+            // (p = D(c) ^ chain).
             if !ecb && op == kCCEncrypt {
                 for j in 0..AES_BLOCK_SIZE {
                     block[j] ^= chain[j];
