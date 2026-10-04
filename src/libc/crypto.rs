@@ -60,23 +60,34 @@ const kCCOptionECBMode: u32 = 0x0002;
 
 const AES_BLOCK_SIZE: usize = 16;
 
-
 fn aes_block_crypt(key: &[u8], op: u32, block: &mut [u8; AES_BLOCK_SIZE]) {
     let generic_block = aes::Block::from_mut_slice(block);
     if op == kCCEncrypt {
         if key.len() == 16 {
-            Aes128::new_from_slice(key).unwrap().encrypt_block(generic_block);
+            Aes128::new_from_slice(key)
+                .unwrap()
+                .encrypt_block(generic_block);
         } else if key.len() == 24 {
-            Aes192::new_from_slice(key).unwrap().encrypt_block(generic_block);
+            Aes192::new_from_slice(key)
+                .unwrap()
+                .encrypt_block(generic_block);
         } else {
-            Aes256::new_from_slice(key).unwrap().encrypt_block(generic_block);
+            Aes256::new_from_slice(key)
+                .unwrap()
+                .encrypt_block(generic_block);
         }
     } else if key.len() == 16 {
-        Aes128::new_from_slice(key).unwrap().decrypt_block(generic_block);
+        Aes128::new_from_slice(key)
+            .unwrap()
+            .decrypt_block(generic_block);
     } else if key.len() == 24 {
-        Aes192::new_from_slice(key).unwrap().decrypt_block(generic_block);
+        Aes192::new_from_slice(key)
+            .unwrap()
+            .decrypt_block(generic_block);
     } else {
-        Aes256::new_from_slice(key).unwrap().decrypt_block(generic_block);
+        Aes256::new_from_slice(key)
+            .unwrap()
+            .decrypt_block(generic_block);
     }
 }
 
@@ -122,9 +133,7 @@ fn CCCrypt(
         let mut chain = if iv.is_null() {
             vec![0u8; AES_BLOCK_SIZE]
         } else {
-            env.mem
-                .bytes_at(iv.cast(), AES_BLOCK_SIZE as u32)
-                .to_vec()
+            env.mem.bytes_at(iv.cast(), AES_BLOCK_SIZE as u32).to_vec()
         };
 
         // When no IV is provided and ECB mode isn't requested, Apple treats
@@ -189,18 +198,17 @@ fn CCCrypt(
         let mut produced = out_bytes.len();
         if (options & kCCOptionPKCS7Padding) != 0 && op == kCCDecrypt {
             match out_bytes.last() {
-                Some(&pad) if pad >= 1
-                    && (pad as usize) <= AES_BLOCK_SIZE
-                    && out_bytes[out_bytes.len() - pad as usize..]
-                        .iter()
-                        .all(|&b| b == pad) =>
+                Some(&pad)
+                    if pad >= 1
+                        && (pad as usize) <= AES_BLOCK_SIZE
+                        && out_bytes[out_bytes.len() - pad as usize..]
+                            .iter()
+                            .all(|&b| b == pad) =>
                 {
                     produced -= pad as usize;
                 }
                 _ => {
-                    log!(
-                        "CCCrypt: invalid PKCS7 padding, returning kCCDecodeError"
-                    );
+                    log!("CCCrypt: invalid PKCS7 padding, returning kCCDecodeError");
                     return kCCDecodeError;
                 }
             }
