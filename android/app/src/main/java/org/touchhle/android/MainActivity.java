@@ -57,53 +57,21 @@ public class MainActivity extends SDLActivity {
     /**
      * Called from Rust (via JNI) when the user taps the "Add game" button in
      * the app picker. Launches the system file picker on the UI thread.
-     *
-     * Returns true if the picker was started, or false if the activity wasn't
-     * ready or starting it threw an exception.
      */
-    public static boolean addGamePicker() {
+    public static void addGamePicker() {
         final Activity activity = instance;
         if (activity == null) {
-            Log.e("touchHLE", "Add game: activity is null");
-            return false;
+            return;
         }
-        final boolean[] started = new boolean[]{false};
-        final Throwable[] failure = new Throwable[]{null};
-        final Object lock = new Object();
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                try {
-                    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                    intent.addCategory(Intent.CATEGORY_OPENABLE);
-                    intent.setType("*/*");
-                    activity.startActivityForResult(intent, ADD_GAME_REQUEST);
-                    started[0] = true;
-                } catch (Throwable t) {
-                    Log.e("touchHLE", "Add game: couldn't start the file picker", t);
-                    failure[0] = t;
-                } finally {
-                    synchronized (lock) {
-                        lock.notifyAll();
-                    }
-                }
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("*/*");
+                activity.startActivityForResult(intent, ADD_GAME_REQUEST);
             }
         });
-        try {
-            synchronized (lock) {
-                // Wait a bounded amount of time for the UI thread to run the
-                // above. If it times out, something is badly wrong.
-                lock.wait(5000);
-            }
-        } catch (InterruptedException e) {
-            Log.e("touchHLE", "Add game: interrupted while waiting for the picker", e);
-            return false;
-        }
-        if (failure[0] != null) {
-            Log.e("touchHLE", "Add game: picker failed", failure[0]);
-            return false;
-        }
-        return started[0];
     }
 
     @Override

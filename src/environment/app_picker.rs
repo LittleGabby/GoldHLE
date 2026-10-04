@@ -249,11 +249,6 @@ const CLASSES: ClassExports = objc_classes! {
     {
         if let Err(e) = android_start_add_game_picker() {
             echo!("Couldn't start the add-game file picker: {}", e);
-            crate::window::show_messagebox(
-                env.window.as_deref(),
-                "Add game",
-                &format!("Couldn't start the file picker:\n{}\n\nPlease report this on GitHub.", e),
-            );
         }
     }
 
@@ -323,17 +318,11 @@ fn android_start_add_game_picker() -> Result<(), String> {
         // SAFETY: the pointer is a valid local reference to the activity.
         let activity = unsafe { JObject::from_raw(activity_ptr as *mut _) };
         match jni_env.get_object_class(&activity) {
-            Ok(class) => match jni_env.call_static_method(class, "addGamePicker", "()Z", &[]) {
-                Ok(returned) => {
-                    let started = returned.z().unwrap_or(false);
-                    if !started {
-                        result = Err("The file picker couldn't be started (the app's Java side isn't ready yet).".to_string());
-                    }
-                }
-                Err(e) => {
+            Ok(class) => {
+                if let Err(e) = jni_env.call_static_method(class, "addGamePicker", "()V", &[]) {
                     result = Err(format!("Couldn't launch the add-game file picker: {}", e));
                 }
-            },
+            }
             Err(e) => result = Err(format!("Couldn't get the MainActivity class: {}", e)),
         }
     }

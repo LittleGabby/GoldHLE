@@ -1441,31 +1441,6 @@ pub fn open_url(env: &mut Environment, url: &str) -> Result<(), String> {
     env.on_parent_stack_in_coroutine(|_, _| sdl2::url::open_url(url).map_err(|e| e.to_string()))
 }
 
-/// Show an SDL messagebox with a single "OK" button. Used to report
-/// recoverable problems to the user, e.g. when a UI action failed.
-///
-/// The window argument allows for passing in the parent window for the
-/// messagebox, which is not required but should be done if possible.
-// Only used on Android at the moment.
-#[allow(dead_code)]
-pub fn show_messagebox(window: Option<&Window>, title: &str, message: &str) {
-    assert!(window.is_none_or(|win| win.on_main_stack));
-    use sdl2::messagebox;
-    let mbox = [messagebox::ButtonData {
-        flags: messagebox::MessageBoxButtonFlag::RETURNKEY_DEFAULT,
-        button_id: 0,
-        text: "OK",
-    }];
-    let _ = messagebox::show_message_box(
-        messagebox::MessageBoxFlag::WARNING,
-        &mbox,
-        title,
-        message,
-        window.map(|win| &win.window),
-        None,
-    );
-}
-
 /// Show an SDL messagebox for an error (typically after a panic).
 ///
 /// The window argument allows for passing in the parent window for the
