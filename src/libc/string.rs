@@ -309,7 +309,7 @@ fn strcasestr(env: &mut Environment, haystack: ConstPtr<u8>, needle: ConstPtr<u8
                 return (haystack + haystack_offset).cast();
             }
             let haystack_char = env.mem.read(haystack + haystack_offset + needle_offset);
-            if needle_char.to_ascii_lowercase() != haystack_char.to_ascii_lowercase() {
+            if !needle_char.eq_ignore_ascii_case(&haystack_char) {
                 break;
             }
             needle_offset += 1;

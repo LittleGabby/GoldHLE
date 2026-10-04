@@ -538,7 +538,7 @@ fn close_current_subpath(host_obj: &mut CGContextHostObject) {
 /// Adds a device-space point to the current path, starting a new subpath (from
 /// the current point) if the previous one is closed or doesn't exist.
 fn add_path_point(host_obj: &mut CGContextHostObject, point: CGPoint) {
-    let need_new_subpath = host_obj.path.last().map_or(true, |subpath| subpath.closed);
+    let need_new_subpath = host_obj.path.last().is_none_or(|subpath| subpath.closed);
     if need_new_subpath {
         let mut subpath: Vec<CGPoint> = Vec::new();
         if let Some(current) = host_obj.path_current_point {
@@ -823,7 +823,7 @@ fn CGContextStrokeLineSegments(
     points: ConstPtr<CGPoint>,
     count: GuestUSize,
 ) {
-    assert!(count % 2 == 0); // pairs of (start, end) points
+    assert!(count.is_multiple_of(2)); // pairs of (start, end) points
     let (transform, line_width) = {
         let host_obj = env.objc.borrow::<CGContextHostObject>(context);
         (host_obj.transform, host_obj.line_width)

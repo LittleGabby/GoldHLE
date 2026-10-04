@@ -21,14 +21,14 @@ fn sched_get_priority_max(env: &mut Environment, policy: i32) -> i32 {
     // values. (TODO: check the real ranges on iPhone OS)
     let _ = env;
     match policy {
-        1 /* SCHED_OTHER */ | 2 /* SCHED_FIFO */ | 3 /* SCHED_RR */ => 127,
+        1..=3 => 127,
         _ => -1, // EINVAL
     }
 }
 fn sched_get_priority_min(env: &mut Environment, policy: i32) -> i32 {
     let _ = env;
     match policy {
-        1 /* SCHED_OTHER */ | 2 /* SCHED_FIFO */ | 3 /* SCHED_RR */ => 0,
+        1..=3 => 0,
         _ => -1, // EINVAL
     }
 }
