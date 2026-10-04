@@ -1012,6 +1012,7 @@ dependencies = [
  "crc32fast",
  "digest",
  "encoding_rs",
+ "flate2",
  "gl_generator",
  "hound",
  "libc",
