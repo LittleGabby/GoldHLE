@@ -400,7 +400,7 @@ fn app_picker_inner(
         let text = ns_string::from_rust_string(
             env,
             format!(
-                "touchHLE {}{}{}",
+                "GoldHLE {}{}{}",
                 crate::branding(),
                 if crate::branding().is_empty() {
                     ""
