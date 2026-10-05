@@ -24,9 +24,7 @@ pub fn branding() -> &'static str {
     {
         return "";
     }
-    if (GITHUB_REPOSITORY, GITHUB_REF_NAME) == (Some("LittleGabby/GoldHLE"), Some("trunk")) {
-        "PREVIEW"
-    } else {
-        "UNOFFICIAL"
-    }
+    // Non-release builds (preview branches, forks, etc.) all get the
+    // PREVIEW branding.
+    "PREVIEW"
 }
