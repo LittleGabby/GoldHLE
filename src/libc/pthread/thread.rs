@@ -457,6 +457,4 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(pthread_get_stacksize_np(_)),
     export_c_func!(pthread_getschedparam(_, _, _)),
     export_c_func!(pthread_setschedparam(_, _, _)),
-    export_c_func!(pthread_cancel(_)),
-    export_c_func!(pthread_exit(_)),
 ];
