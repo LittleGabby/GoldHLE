@@ -223,6 +223,11 @@ fn CCCrypt(
         env.mem
             .bytes_at_mut(data_out.cast(), produced as u32)
             .copy_from_slice(&out_bytes[..produced]);
+        if op == kCCDecrypt {
+            let key_addr_bits = key.to_bits();
+            let dump_path = format!("/tmp/ccdump/{:016x}_{}.bin", key_addr_bits, produced);
+            let _ = std::fs::write(&dump_path, &out_bytes[..produced]);
+        }
         env.mem.write(data_out_moved, produced as u32);
         kCCSuccess
     } else if alg == kCCAlgorithmRC4 {

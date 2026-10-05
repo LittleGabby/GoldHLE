@@ -11,6 +11,8 @@ use crate::libc::errno::{EDEADLK, EINVAL, ESRCH};
 use crate::mem::{
     self, ConstPtr, ConstVoidPtr, GuestUSize, MutPtr, MutVoidPtr, Ptr, SafeRead, PAGE_SIZE,
 };
+
+use crate::environment::ThreadBlock;
 use crate::{Environment, ThreadId};
 use std::collections::HashMap;
 
@@ -409,6 +411,28 @@ fn pthread_setschedparam(
     0
 }
 
+pub fn pthread_cancel(_env: &mut Environment, thread: pthread_t) -> i32 {
+    log_dbg!("TODO: pthread_cancel({:?}) — acting as a no-op", thread);
+    0
+}
+
+pub fn pthread_exit(env: &mut Environment, retval: MutVoidPtr) {
+    log_dbg!(
+        "pthread_exit({:?}) on thread {}",
+        retval,
+        env.current_thread
+    );
+    // Mark this thread as dead (with its return value, for joiners) and
+    // yield. Being dead, the scheduler will never resume it again.
+    env.finish_current_thread(retval);
+    env.yield_thread(ThreadBlock::NotBlocked);
+    // Defensive: if the thread is somehow resumed, park forever rather than
+    // continuing execution in an undefined state.
+    loop {
+        std::thread::park();
+    }
+}
+
 pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(pthread_attr_init(_)),
     export_c_func!(pthread_attr_getdetachstate(_, _)),
@@ -422,6 +446,8 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(pthread_create(_, _, _, _)),
     export_c_func!(pthread_equal(_, _)),
     export_c_func!(pthread_self()),
+    export_c_func!(pthread_exit(_)),
+    export_c_func!(pthread_cancel(_)),
     export_c_func!(pthread_join(_, _)),
     export_c_func!(pthread_detach(_)),
     export_c_func!(pthread_setcanceltype(_, _)),
@@ -431,4 +457,6 @@ pub const FUNCTIONS: FunctionExports = &[
     export_c_func!(pthread_get_stacksize_np(_)),
     export_c_func!(pthread_getschedparam(_, _, _)),
     export_c_func!(pthread_setschedparam(_, _, _)),
+    export_c_func!(pthread_cancel(_)),
+    export_c_func!(pthread_exit(_)),
 ];

@@ -1153,6 +1153,14 @@ impl Environment {
         }
     }
 
+    /// Terminate the current thread cooperatively: store its return value
+    /// (for `pthread_join`), mark it as dead and suspend it forever.
+    pub fn finish_current_thread(&mut self, return_value: MutVoidPtr) {
+        let thread = &mut self.threads[self.current_thread];
+        thread.return_value = Some(return_value);
+        thread.state = ThreadState::Dead;
+    }
+
     pub fn resume_thread(&mut self, thread: ThreadId) {
         let old = std::mem::replace(
             &mut self.threads[thread].blocked_by,
